@@ -1,40 +1,45 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
-	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
-	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
 // https://github.com/libp2p/go-libp2p/blob/master/examples/pubsub/chat/main.go
 
 func main() {
 	r := rand.Reader
-	node, err := MakeHost(r)
+	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 
 	if err != nil {
 		panic(err)
 	}
 
-	peerInfo := peer.AddrInfo{
-		ID:    node.ID(),
-		Addrs: node.Addrs(),
-	}
-	addrs, err := peer.AddrInfoToP2pAddrs(&peerInfo)
+	node, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"), libp2p.Identity(prvKey))
+
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("Listen address: ", addrs[0])
+	ctx := context.Background()
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	<-ch
-	fmt.Println("Received signal, shutting down...")
+	ps, err := pubsub.NewGossipSub(ctx, node)
+
+	if err != nil {
+		panic(err)
+	}
+
+	if err := SetupDiscovery(node); err != nil {
+		panic(err)
+	}
+
+	ui := NewBlockChainUI(ps)
+
+	ui.Run()
 
 	if err := node.Close(); err != nil {
 		panic(err)
