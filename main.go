@@ -1,47 +1,77 @@
 package main
 
 import (
-	"context"
-	"crypto/rand"
-
-	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"flag"
 )
 
 // https://github.com/libp2p/go-libp2p/blob/master/examples/pubsub/chat/main.go
 
 func main() {
-	r := rand.Reader
-	prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
+	walletKey := flag.String("wallet", "", "Wallet key")
 
-	if err != nil {
-		panic(err)
+	flag.Parse()
+
+	var (
+		wallet *Wallet
+		err    error
+	)
+
+	// usuário não passou a chave da carteira
+	if *walletKey == "" {
+		// tenta ler do arquivo
+		wallet, err = NewWalletFromFile()
+
+		if err != nil {
+			*walletKey = RandString(8)
+			wallet = NewWallet(*walletKey)
+			wallet.SaveToFile()
+		}
+
 	}
 
-	node, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"), libp2p.Identity(prvKey))
+	// r := rand.Reader
+	// prvKey, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, r)
 
-	if err != nil {
-		panic(err)
-	}
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	ctx := context.Background()
+	// node, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"), libp2p.Identity(prvKey))
 
-	ps, err := pubsub.NewGossipSub(ctx, node)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	if err != nil {
-		panic(err)
-	}
+	// ctx := context.Background()
 
-	if err := SetupDiscovery(node); err != nil {
-		panic(err)
-	}
+	// ps, err := pubsub.NewGossipSub(ctx, node)
 
-	ui := NewBlockChainUI(ps)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	ui.Run()
+	// if err := SetupDiscovery(node); err != nil {
+	// 	panic(err)
+	// }
 
-	if err := node.Close(); err != nil {
-		panic(err)
-	}
+	// br, err := JoinBlockChainRoom(ctx, ps, node.ID(), wallet)
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// ui := NewBlockChainUI(br, ps, wallet)
+
+	// ui.Run()
+
+	// if err := node.Close(); err != nil {
+	// 	panic(err)
+	// }
+
+	bc := NewBlockchain()
+	bg := NewBlockGenesis()
+	bc.AddBlock(bg)
+	b := NewBlock([]byte(bg.Hash()))
+	b.AddTransaction(NewTransaction(TransactionAdd, wallet, 1))
+	bc.AddBlock(b)
+	bc.SaveToFile()
 }

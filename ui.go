@@ -10,26 +10,30 @@ import (
 // https://github.com/libp2p/go-libp2p/blob/master/examples/pubsub/chat/ui.go
 
 type BlockChainUI struct {
+	Room      *BlockChainRoom
 	app       *tview.Application
 	mainPanel *tview.Flex
 	mnList    *tview.List
 	ps        *pubsub.PubSub
+	Wallet    *Wallet
 	doneCh    chan struct{}
 }
 
-func NewBlockChainUI(ps *pubsub.PubSub) *BlockChainUI {
+func NewBlockChainUI(br *BlockChainRoom, ps *pubsub.PubSub, wallet *Wallet) *BlockChainUI {
 	app := tview.NewApplication()
 
 	mainPanel := tview.NewFlex()
-	mainPanel.SetBorder(true).SetTitle("Blockchain")
+	mainPanel.SetBorder(true).SetTitle(fmt.Sprintf("Blockchain - %s", wallet.Key))
 
 	doneCh := make(chan struct{}, 1)
 
 	ui := &BlockChainUI{
+		Room:      br,
 		app:       app,
 		mainPanel: mainPanel,
 		ps:        ps,
 		doneCh:    doneCh,
+		Wallet:    wallet,
 	}
 
 	ui.build()
@@ -53,7 +57,6 @@ func (ui *BlockChainUI) build() {
 	})
 
 	mnList := tview.NewList().
-		AddItem("Carteira", "Login na carteira", 'c', ui.onCarteiraSelect).
 		AddItem("Transferir", "Transferência de valores entre carteiras", 't', nil).
 		AddItem("Sair", "Sair do Sistema", 's', func() {
 			ui.app.Stop()
@@ -90,20 +93,6 @@ func (ui *BlockChainUI) handleEvents() {
 			return
 		}
 	}
-}
-
-func (ui *BlockChainUI) onCarteiraSelect() {
-	form := tview.NewForm()
-	form.AddInputField("Chave", "", 30, nil, nil).
-		AddButton("Ok", func() {
-
-		}).
-		AddButton("Cancel", func() {
-			ui.app.SetFocus(ui.mnList)
-			ui.mainPanel.Clear()
-		})
-	ui.mainPanel.AddItem(form, 0, 1, true)
-	ui.app.SetFocus(ui.mainPanel)
 }
 
 func (ui *BlockChainUI) End() {
